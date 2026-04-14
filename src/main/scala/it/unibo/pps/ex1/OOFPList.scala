@@ -1,5 +1,8 @@
 package it.unibo.pps.ex1
 
+import scala.annotation.tailrec
+import scala.language.postfixOps
+
 // List as a pure interface
 enum List[A]:
   case ::(h: A, t: List[A])
@@ -35,7 +38,7 @@ enum List[A]:
     foldRight(list)(_ :: _)
 
   def flatMap[B](f: A => List[B]): List[B] =
-    foldRight(Nil())(f(_) append _)
+    foldLeft(Nil())((list, value) => list.append(f(value)))
 
   def filter(predicate: A => Boolean): List[A] = flatMap(a => if predicate(a) then a :: Nil() else Nil())
 
@@ -46,14 +49,41 @@ enum List[A]:
     case h :: t => t.foldLeft(h)(op)
   
   // Exercise: implement the following methods
-  def zipWithValue[B](value: B): List[(A, B)] = ???
-  def length(): Int = ???
-  def indices(): List[Int] = ???
-  def zipWithIndex: List[(A, Int)] = ???
-  def partition(predicate: A => Boolean): (List[A], List[A]) = ???
-  def span(predicate: A => Boolean): (List[A], List[A]) = ???
-  def takeRight(n: Int): List[A] = ???
-  def collect(predicate: PartialFunction[A, A]): List[A] = ???
+  def zipWithValue[B](value: B): List[(A, B)] = this.map(c => (c, value))
+
+  def length(): Int = this.foldLeft(0)((acc, _) => acc + 1)
+
+  def indices(wFoldLeft: Boolean): List[Int] =
+    if wFoldLeft then this.foldLeft(Nil())((acc, h) => (acc.length() - this.length() + 1).abs :: acc)
+    else
+      def _indices(currentList: List[A], currentIndex: Int): List[Int] = currentList match
+        case h :: t => currentIndex :: _indices(t, currentIndex + 1)
+        case _ => Nil()
+      _indices(this, 0)
+
+  def zipWithIndex: List[(A, Int)] =
+    this.foldRight(Nil())((h, acc) => (h, (acc.length() - this.length() + 1).abs) :: acc)
+
+  def partition(predicate: A => Boolean): (List[A], List[A]) =
+    (this.filter(predicate(_)), this.filter(!predicate(_)))
+
+  def span(predicate: A => Boolean): (List[A], List[A]) =
+    def _takeUntil(list: List[A]): List[A] = list match
+      case h :: t if predicate(h) => h :: _takeUntil(t)
+      case _ => Nil()
+    @tailrec
+    def --(l1: List[A], l2: List[A]): List[A] = (l1, l2) match
+      case (h1 :: t1, h2 :: t2) => --(t1, t2)
+      case _ => l1
+    val l1 = _takeUntil(this)
+    (l1, --(this, l1))
+
+  def takeRight(n: Int): List[A] =
+    this.foldRight(Nil())((h, acc) => if acc.length() < n then h :: acc else acc)
+
+  def collect(predicate: PartialFunction[A, A]): List[A] =
+    this.foldRight(Nil())((h, acc) => if predicate.isDefinedAt(h) then predicate(h) :: acc else acc)
+
 // Factories
 object List:
 
@@ -82,7 +112,8 @@ object Test extends App:
   println(unzipWithFold(List((1, 2), (4, 3), (10, 20)))) //
   println(reference.zipWithValue(10)) // List((1, 10), (2, 10), (3, 10), (4, 10))
   println(reference.length()) // 4
-  println(reference.indices()) // List(0, 1, 2, 3)
+  println(reference.indices(true)) // List(0, 1, 2, 3)
+  println(reference.indices(false)) // List(0, 1, 2, 3)
   println(reference.zipWithIndex) // List((1, 0), (2, 1), (3, 2), (4, 3))
   println(reference.partition(_ % 2 == 0)) // (List(2, 4), List(1, 3))
   println(reference.span(_ % 2 != 0)) // (List(1), List(2, 3, 4))
