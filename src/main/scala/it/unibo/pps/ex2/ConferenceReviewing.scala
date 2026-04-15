@@ -1,5 +1,7 @@
 package it.unibo.pps.ex2
 
+import it.unibo.pps.ex2.ConferenceReviewing.Question.{CONFIDENCE, FINAL}
+
 /**
  * An interface modelling the results of reviewing articles of a conference
  * Each reviewer (revisore) reads an article (articolo), and answers to a number of questions
@@ -99,12 +101,12 @@ class ConferenceReviewingImpl extends ConferenceReviewing:
   override def sortedAcceptedArticles: List[(Int, Double)] =
     acceptedArticles.map(a => (a, averageFinalScore(a))).toList.sortWith(_._2 < _._2)
 
-  /**
-   * @return a map from articles to their average "weighted final score", namely,
-   *         the average value of CONFIDENCE*FINAL/10
-   *         Note: this method is optional in this exam
-   */
-  override def averageWeightedFinalScoreMap: Map[Int, Double] = ???
+  override def averageWeightedFinalScoreMap: Map[Int, Double] =
+    def _calculateAvgWeightedFin(article: Int): Double =
+      val finWeightedRevs =
+        reviews.filter(_._1 == article).map(c => c._2(Question.CONFIDENCE) * c._2(Question.FINAL) / 10.0)
+      finWeightedRevs.sum / finWeightedRevs.size
+    reviews.map(c => c._1 -> _calculateAvgWeightedFin(c._1)).toMap
 
 object Test extends App:
   import ConferenceReviewing.Question
@@ -118,7 +120,7 @@ object Test extends App:
   cr.loadReview(3, 4, 4, 4, 4)
   cr.loadReview(4, 6, 6, 6, 6)
   cr.loadReview(4, 7, 7, 8, 7)
-
+  
   println(cr.orderedScores(1, Question.FINAL))       // List(8, 9)
   println(cr.orderedScores(2, Question.RELEVANCE))   // List(4, 9)
   println(cr.orderedScores(3, Question.CONFIDENCE))  // List(3, 4)
@@ -131,3 +133,5 @@ object Test extends App:
   println(cr.acceptedArticles)  // Set(1, 2)
 
   println(cr.sortedAcceptedArticles)  // List((2, 7.5), (1, 8.5))
+
+  println(cr.averageWeightedFinalScoreMap) // Map(1 -> 5.1, 2 -> 7.5, 3 -> 1.25, 4 -> 4.6)
